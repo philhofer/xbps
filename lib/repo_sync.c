@@ -38,6 +38,7 @@ char HIDDEN *
 xbps_get_remote_repo_string(const char *uri)
 {
 	struct url *url;
+	size_t plen;
 	size_t i;
 	char *p;
 
@@ -62,7 +63,8 @@ xbps_get_remote_repo_string(const char *uri)
 		    url->host, url->doc);
 
 	fetchFreeURL(url);
-	for (i = 0; i < strlen(p); i++) {
+	plen = strlen(p);
+	for (i = 0; i < plen; i++) {
 		if (p[i] == '.' || p[i] == '/' || p[i] == ':')
 			p[i] = '_';
 	}
