@@ -44,14 +44,10 @@ usage(bool fail)
 	    " -V, --version                      Show XBPS version\n"
 	    " -C, --hashcheck                    Consider file hashes for cleaning up packages\n"
 	    "     --compression <fmt>            Compression format: none, gzip, bzip2, lz4, xz, zstd (default)\n"
-	    "     --privkey <key>                Path to the private key for signing\n"
-	    "     --signedby <string>            Signature details, i.e \"name <email>\"\n\n"
 	    "MODE\n"
 	    " -a, --add <repodir/file.xbps> ...  Add package(s) to repository index\n"
 	    " -c, --clean <repodir>              Clean repository index\n"
-	    " -r, --remove-obsoletes <repodir>   Removes obsolete packages from repository\n"
-	    " -s, --sign <repodir>               Initialize repository metadata signature\n"
-	    " -S, --sign-pkg <file.xbps> ...     Sign binary package archive\n");
+	    " -r, --remove-obsoletes <repodir>   Removes obsolete packages from repository\n");
 	exit(fail ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
@@ -68,17 +64,12 @@ main(int argc, char **argv)
 		{ "remove-obsoletes", no_argument, NULL, 'r' },
 		{ "version", no_argument, NULL, 'V' },
 		{ "verbose", no_argument, NULL, 'v' },
-		{ "privkey", required_argument, NULL, 0},
-		{ "signedby", required_argument, NULL, 1},
-		{ "sign", no_argument, NULL, 's'},
-		{ "sign-pkg", no_argument, NULL, 'S'},
 		{ "hashcheck", no_argument, NULL, 'C' },
 		{ "compression", required_argument, NULL, 2},
 		{ NULL, 0, NULL, 0 }
 	};
 	struct xbps_handle xh;
 	const char *compression = NULL;
-	const char *privkey = NULL, *signedby = NULL;
 	int rv, c, flags = 0;
 	bool add_mode, clean_mode, rm_mode, sign_mode, sign_pkg_mode, force,
 			 hashcheck;
@@ -88,12 +79,6 @@ main(int argc, char **argv)
 
 	while ((c = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1) {
 		switch (c) {
-		case 0:
-			privkey = optarg;
-			break;
-		case 1:
-			signedby = optarg;
-			break;
 		case 2:
 			compression = optarg;
 			break;
@@ -121,9 +106,6 @@ main(int argc, char **argv)
 		case 'C':
 			hashcheck = true;
 			break;
-		case 'S':
-			sign_pkg_mode = true;
-			break;
 		case 'v':
 			flags |= XBPS_FLAG_VERBOSE;
 			break;
@@ -137,16 +119,12 @@ main(int argc, char **argv)
 		}
 	}
 	if ((argc == optind) ||
-	    (!add_mode && !clean_mode && !rm_mode && !sign_mode && !sign_pkg_mode)) {
+	    (!add_mode && !clean_mode && !rm_mode)) {
 		usage(true);
 		/* NOTREACHED */
-	} else if ((add_mode && (clean_mode || rm_mode || sign_mode || sign_pkg_mode)) ||
-		   (clean_mode && (add_mode || rm_mode || sign_mode || sign_pkg_mode)) ||
-		   (rm_mode && (add_mode || clean_mode || sign_mode || sign_pkg_mode)) ||
-		   (sign_mode && (add_mode || clean_mode || rm_mode || sign_pkg_mode)) ||
-		   (sign_pkg_mode && (add_mode || clean_mode || rm_mode || sign_mode))) {
+	} else if (((!!add_mode)+(!!clean_mode)+(!!rm_mode)) != 1) {
 		xbps_error_printf("Only one mode can be specified: add, clean, "
-		    "remove-obsoletes, sign or sign-pkg.\n");
+		    "or remove-obsoletes.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -165,10 +143,6 @@ main(int argc, char **argv)
 		rv = index_clean(&xh, argv[optind], hashcheck, compression);
 	else if (rm_mode)
 		rv = remove_obsoletes(&xh, argv[optind]);
-	else if (sign_mode)
-		rv = sign_repo(&xh, argv[optind], privkey, signedby, compression);
-	else if (sign_pkg_mode)
-		rv = sign_pkgs(&xh, optind, argc, argv, privkey, force);
 
 	exit(rv);
 }
