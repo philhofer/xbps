@@ -1,0 +1,14 @@
+#!/bin/sh -e
+#
+# usage: $0 KEYFILE DIR
+usage() {
+	echo "usage: $0 keyfile repodir" >&2
+	echo "   keyfile is passed directly to ssh-keygen via -f" >&2
+	echo "   repodir should have *-repodata files in it" >&2
+	exit 1
+}
+[ $# -eq 2 ] || usage
+[ -d "$2" ] || usage
+echo "signing ${2}/*-repodata..." >&2
+exec ssh-keygen -Y sign -n 'codesign@voidlinux.org' \
+	-f $1 ${2}/*-repodata
