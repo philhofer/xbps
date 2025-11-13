@@ -23,6 +23,9 @@ install: all
 	@for dir in $(SUBDIRS); do		\
 		$(MAKE) -C $$dir install || exit 1;	\
 	done
+	install -m755 -d $(DESTDIR)$(SBINDIR)
+	install -m755 tools/xsign $(DESTDIR)$(SBINDIR)/xsign
+	install -m755 tools/xverify $(DESTDIR)$(SBINDIR)/xverify
 	install -d $(DESTDIR)$(SHAREDIR)/licenses/xbps
 	install -m644 ./LICENSE $(DESTDIR)$(SHAREDIR)/licenses/xbps
 	install -m644 ./LICENSE.3RDPARTY $(DESTDIR)$(SHAREDIR)/licenses/xbps
