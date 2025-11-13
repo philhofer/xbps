@@ -202,7 +202,7 @@ xbps_repo_sync(struct xbps_handle *xhp, const char *uri)
 		xbps_set_cb_state(xhp, XBPS_STATE_REPOSYNC_FAIL,
 		    fetchLastErrCode != 0 ? fetchLastErrCode : errno, NULL,
 		    "[reposync] failed to fetch file `%s': %s",
-		    repodata, fetchstr ? fetchstr : strerror(errno));
+		    reposig, fetchstr ? fetchstr : strerror(errno));
 		goto done;
 	}
 	/*
