@@ -82,18 +82,6 @@ unpack_progress_cb(const struct xbps_unpack_cb_data *xpd, void *cbdata UNUSED)
 	    xpd->entry_size);
 }
 
-static int
-repo_import_key_cb(struct xbps_repo *repo, void *arg UNUSED, bool *done UNUSED)
-{
-	int rv;
-
-	if ((rv = xbps_repo_key_import(repo)) != 0)
-		xbps_error_printf("Failed to import pubkey from %s: %s\n",
-		    repo->uri, strerror(rv));
-
-	return rv;
-}
-
 int
 main(int argc, char **argv)
 {
@@ -236,14 +224,9 @@ main(int argc, char **argv)
 
 	maxcols = get_maxcols();
 
-	/* Sync remote repository data and import keys from remote repos */
+	/* Sync remote repository data */
 	if (syncf && !drun) {
 		if ((rv = xbps_rpool_sync(&xh, NULL)) != 0) {
-			xbps_end(&xh);
-			exit(EXIT_FAILURE);
-		}
-		rv = xbps_rpool_foreach(&xh, repo_import_key_cb, NULL);
-		if (rv != 0) {
 			xbps_end(&xh);
 			exit(EXIT_FAILURE);
 		}

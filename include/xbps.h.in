@@ -643,6 +643,13 @@ struct xbps_handle {
 	 * Target architecture, as set by XBPS_TARGET_ARCH from environment.
 	 */
 	const char *target_arch;
+    /**
+     * @var signer_principal
+     *
+     * The expected ssh principal for signing packages.
+     * Defaults to "codesigner@voidlinux.org"
+     */
+    const char *signer_principal;
 	/**
 	 * @var confdir
 	 *
@@ -1946,6 +1953,19 @@ bool xbps_mmap_file(const char *file, void **mmf, size_t *mmflen, size_t *filele
  * @return true on success, false otherwise.
  */
 bool xbps_file_sha256(char *dst, size_t len, const char *file);
+
+/**
+ * Compares a hex digest \sha256 to a computed digest \digest.
+ *
+ * @param[in] sha256 source hex digest
+ * @param[in] shalen source hex digest string length (should be XBPS_SHA256_LENGTH)
+ * @param[in] digest binary sha256 digest
+ * @param[in] digestlen size of digest (should be XBPS_SHA256_DIGEST_SIZE_LENGTH)
+ *
+ * @return true on success, false otherwise.
+ */
+bool xbps_sha256_digest_compare(const char *sha256, size_t shalen,
+		const unsigned char *digest, size_t digestlen);
 
 /**
  * Computes a sha256 binary digest into \a dst of size \a len

@@ -58,6 +58,9 @@ xbps_init(struct xbps_handle *xhp)
 
 	xbps_dbg_printf("%s\n", XBPS_RELVER);
 
+	if (xhp->signer_principal == NULL)
+		xhp->signer_principal = XBPS_SIGNER_PRINCIPAL;
+
 	/* Set rootdir */
 	if (xhp->rootdir[0] == '\0') {
 		xhp->rootdir[0] = '/';
