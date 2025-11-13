@@ -25,7 +25,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "xbps.h"
 #include <sys/types.h>
+#include <sys/wait.h>
 #ifdef __FreeBSD__
 #define _WITH_GETLINE   /* getline() */
 #endif

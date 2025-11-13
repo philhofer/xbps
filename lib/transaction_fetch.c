@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "xbps.h"
 #include "xbps_api_impl.h"
 #include "fetch.h"
 
@@ -37,7 +38,6 @@ static int
 verify_binpkg(struct xbps_handle *xhp, xbps_dictionary_t pkgd)
 {
 	char binfile[PATH_MAX];
-	struct xbps_repo *repo;
 	const char *pkgver, *repoloc, *sha256;
 	ssize_t l;
 	int rv = 0;
@@ -49,62 +49,30 @@ verify_binpkg(struct xbps_handle *xhp, xbps_dictionary_t pkgd)
 	if (l < 0)
 		return -l;
 
-	/*
-	 * For pkgs in local repos check the sha256 hash.
-	 * For pkgs in remote repos check the RSA signature.
-	 */
-	if ((repo = xbps_rpool_get_repo(repoloc)) == NULL) {
-		rv = errno;
-		xbps_dbg_printf("%s: failed to get repository "
-			"%s: %s\n", pkgver, repoloc, strerror(errno));
+	xbps_set_cb_state(xhp, XBPS_STATE_VERIFY, 0, pkgver,
+		"%s: verifying SHA256 hash...", pkgver);
+	xbps_dictionary_get_cstring_nocopy(pkgd, "filename-sha256", &sha256);
+	if ((rv = xbps_file_sha256_check(binfile, sha256)) != 0) {
+		if (rv == ERANGE) {
+			xbps_set_cb_state(xhp, XBPS_STATE_VERIFY_FAIL,
+			    rv, pkgver,
+			    "%s: checksum does not match repository index",
+			    pkgver);
+		} else {
+			xbps_set_cb_state(xhp, XBPS_STATE_VERIFY_FAIL,
+			    rv, pkgver, "%s: failed to checksum: %s",
+			    pkgver, strerror(errno));
+		}
 		return rv;
 	}
-	if (repo->is_remote) {
-		/* remote repo */
-		xbps_set_cb_state(xhp, XBPS_STATE_VERIFY, 0, pkgver,
-			"%s: verifying RSA signature...", pkgver);
-
-		if (!xbps_verify_file_signature(repo, binfile)) {
-			rv = EPERM;
-			xbps_set_cb_state(xhp, XBPS_STATE_VERIFY_FAIL, rv, pkgver,
-				"%s: the RSA signature is not valid!", pkgver);
-			xbps_set_cb_state(xhp, XBPS_STATE_VERIFY_FAIL, rv, pkgver,
-				"%s: removed pkg archive and its signature.", pkgver);
-			(void)remove(binfile);
-			if (xbps_strlcat(binfile, ".sig2", sizeof(binfile)) < sizeof(binfile))
-				(void)remove(binfile);
-			return rv;
-		}
-	} else {
-		/* local repo */
-		xbps_set_cb_state(xhp, XBPS_STATE_VERIFY, 0, pkgver,
-			"%s: verifying SHA256 hash...", pkgver);
-		xbps_dictionary_get_cstring_nocopy(pkgd, "filename-sha256", &sha256);
-		if ((rv = xbps_file_sha256_check(binfile, sha256)) != 0) {
-			if (rv == ERANGE) {
-				xbps_set_cb_state(xhp, XBPS_STATE_VERIFY_FAIL,
-				    rv, pkgver,
-				    "%s: checksum does not match repository index",
-				    pkgver);
-			} else {
-				xbps_set_cb_state(xhp, XBPS_STATE_VERIFY_FAIL,
-				    rv, pkgver, "%s: failed to checksum: %s",
-				    pkgver, strerror(errno));
-			}
-			return rv;
-		}
-
-	}
-
 	return 0;
 }
 
 static int
 download_binpkg(struct xbps_handle *xhp, xbps_dictionary_t repo_pkgd)
 {
-	struct xbps_repo *repo;
 	char buf[PATH_MAX];
-	char *sigsuffix;
+	const char *sha256;
 	const char *pkgver, *arch, *fetchstr, *repoloc;
 	unsigned char digest[XBPS_SHA256_DIGEST_SIZE] = {0};
 	int rv = 0;
@@ -115,24 +83,9 @@ download_binpkg(struct xbps_handle *xhp, xbps_dictionary_t repo_pkgd)
 
 	xbps_dictionary_get_cstring_nocopy(repo_pkgd, "pkgver", &pkgver);
 	xbps_dictionary_get_cstring_nocopy(repo_pkgd, "architecture", &arch);
+	xbps_dictionary_get_cstring_nocopy(repo_pkgd, "filename-sha256", &sha256);
 
-	snprintf(buf, sizeof buf, "%s/%s.%s.xbps.sig2", repoloc, pkgver, arch);
-	sigsuffix = buf+(strlen(buf)-sizeof (".sig2")+1);
-
-	xbps_set_cb_state(xhp, XBPS_STATE_DOWNLOAD, 0, pkgver,
-		"Downloading `%s' signature (from `%s')...", pkgver, repoloc);
-
-	if ((rv = xbps_fetch_file(xhp, buf, NULL)) == -1) {
-		rv = fetchLastErrCode ? fetchLastErrCode : errno;
-		fetchstr = xbps_fetch_error_string();
-		xbps_set_cb_state(xhp, XBPS_STATE_DOWNLOAD_FAIL, rv,
-			pkgver, "[trans] failed to download `%s' signature from `%s': %s",
-			pkgver, repoloc, fetchstr ? fetchstr : strerror(rv));
-		return rv;
-	}
-	rv = 0;
-
-	*sigsuffix = '\0';
+	snprintf(buf, sizeof buf, "%s/%s.%s.xbps", repoloc, pkgver, arch);
 
 	xbps_set_cb_state(xhp, XBPS_STATE_DOWNLOAD, 0, pkgver,
 		"Downloading `%s' package (from `%s')...", pkgver, repoloc);
@@ -148,49 +101,30 @@ download_binpkg(struct xbps_handle *xhp, xbps_dictionary_t repo_pkgd)
 	}
 	rv = 0;
 
-	xbps_set_cb_state(xhp, XBPS_STATE_VERIFY, 0, pkgver,
-		"%s: verifying RSA signature...", pkgver);
+	snprintf(buf, sizeof buf, "%s/%s.%s.xbps", xhp->cachedir, pkgver, arch);
 
-	snprintf(buf, sizeof buf, "%s/%s.%s.xbps.sig2", xhp->cachedir, pkgver, arch);
-	sigsuffix = buf+(strlen(buf)-sizeof (".sig2")+1);
-
-	if ((repo = xbps_rpool_get_repo(repoloc)) == NULL) {
+	/* if we skipped downloading, make sure we compute the hash of the current file */
+	if (fetchLastErrCode == FETCH_UNCHANGED &&
+	    !xbps_file_sha256_raw(digest, sizeof digest, buf)) {
 		rv = errno;
-		xbps_dbg_printf("%s: failed to get repository "
-			"%s: %s\n", pkgver, repoloc, strerror(errno));
+		xbps_dbg_printf("%s: failed to hash downloaded file\n", buf);
 		return rv;
 	}
 
 	/*
-	 * If digest is not set, binary package was not downloaded,
-	 * i.e. 304 not modified, verify by file instead.
-	 */
-	if (fetchLastErrCode == FETCH_UNCHANGED) {
-		*sigsuffix = '\0';
-		if (!xbps_verify_file_signature(repo, buf)) {
-			rv = EPERM;
-			/* remove binpkg */
-			(void)remove(buf);
-			/* remove signature */
-			*sigsuffix = '.';
-			(void)remove(buf);
-		}
-	} else {
-		if (!xbps_verify_signature(repo, buf, digest)) {
-			rv = EPERM;
-			/* remove signature */
-			(void)remove(buf);
-			/* remove binpkg */
-			*sigsuffix = '\0';
-			(void)remove(buf);
-		}
+	* regardless of how the package was materialized,
+	* confirm that its hash matches the hash in the repodata
+	*/
+	if (!xbps_sha256_digest_compare(sha256, strlen(sha256), digest, sizeof digest)) {
+		(void)remove(buf);
+		rv = EPERM;
 	}
 
 	if (rv == EPERM) {
 		xbps_set_cb_state(xhp, XBPS_STATE_VERIFY_FAIL, rv, pkgver,
-			"%s: the RSA signature is not valid!", pkgver);
+			"%s: the package sha256 is not valid!", pkgver);
 		xbps_set_cb_state(xhp, XBPS_STATE_VERIFY_FAIL, rv, pkgver,
-			"%s: removed pkg archive and its signature.", pkgver);
+			"%s: removed pkg archive.", pkgver);
 	}
 
 	return rv;

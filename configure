@@ -74,6 +74,7 @@ for x; do
 	--sysconfdir) SYSCONFDIR=$var;;
 	--localstatedir) LOCALSTATEDIR=$var;;
 	--libdir) LIBDIR=$var;;
+	--signer-principal) SIGNER_PRINCIPAL=$var;;
 	--datadir|--infodir) ;; # ignore autotools
 	--dbdir) DBDIR=$var;;
 	--enable-api-docs) BUILD_API_DOCS=$var;;
@@ -102,6 +103,7 @@ done
 : ${TESTSDIR:=${EPREFIX}/tests}
 : ${LOCALSTATEDIR:=/var}
 : ${DBDIR:=${LOCALSTATEDIR}/db/xbps}
+: ${SIGNER_PRINCIPAL:="codesigner@voidlinux.org"}
 : ${TOPDIR:=..}
 
 _which()
@@ -164,6 +166,7 @@ echo "SHAREDIR ?= $SHAREDIR" >>$CONFIG_MK
 echo "PKGCONFIGDIR ?= $PKGCONFIGDIR" >>$CONFIG_MK
 echo "TESTSDIR ?= $TESTSDIR" >>$CONFIG_MK
 echo "DBDIR ?= $DBDIR" >>$CONFIG_MK
+echo "SIGNER_PRINCIPAL ?= $SIGNER_PRINCIPAL" >>$CONFIG_MK
 
 ETCDIR="${SYSCONFDIR}/xbps.d"
 echo "ETCDIR ?= $ETCDIR" >>$CONFIG_MK
@@ -198,6 +201,7 @@ echo "LDFLAGS =  	-L\$(TOPDIR)/lib" >>$CONFIG_MK
 echo "CPPFLAGS = 	-D_DEFAULT_SOURCE -D_GNU_SOURCE -I. -I\$(TOPDIR) -I\$(TOPDIR)/include" >>$CONFIG_MK
 echo "CPPFLAGS +=	-DXBPS_SYSCONF_PATH=\\\"${ETCDIR}\\\"" >>$CONFIG_MK
 echo "CPPFLAGS +=	-DXBPS_SYSDEFCONF_PATH=\\\"${SHAREDIR}/xbps.d\\\"" >>$CONFIG_MK
+echo "CPPFLAGS +=	-DXBPS_SIGNER_PRINCIPAL=\\\"${SIGNER_PRINCIPAL}\\\"" >>$CONFIG_MK
 echo "CPPFLAGS +=	-DXBPS_VERSION=\\\"${VERSION}\\\"" >>$CONFIG_MK
 echo "CPPFLAGS +=	-DXBPS_META_PATH=\\\"${DBDIR}\\\"" >>$CONFIG_MK
 echo "CPPFLAGS +=	-DUNUSED=\"__attribute__((__unused__))\"" >>$CONFIG_MK

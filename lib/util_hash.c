@@ -163,8 +163,8 @@ xbps_file_sha256(char *dst, size_t dstlen, const char *file)
 	return true;
 }
 
-static bool
-sha256_digest_compare(const char *sha256, size_t shalen,
+bool
+xbps_sha256_digest_compare(const char *sha256, size_t shalen,
 		const unsigned char *digest, size_t digestlen)
 {
 
@@ -208,7 +208,7 @@ xbps_file_sha256_check(const char *file, const char *sha256)
 	if (!xbps_file_sha256_raw(digest, sizeof digest, file))
 		return errno;
 
-	if (!sha256_digest_compare(sha256, strlen(sha256), digest, sizeof digest))
+	if (!xbps_sha256_digest_compare(sha256, strlen(sha256), digest, sizeof digest))
 		return ERANGE;
 
 	return 0;
