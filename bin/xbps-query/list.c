@@ -182,31 +182,13 @@ list_pkgs_pkgdb(struct xbps_handle *xhp)
 static void
 repo_list_uri(struct xbps_repo *repo)
 {
-	const char *signedby = NULL;
-	uint16_t pubkeysize = 0;
-
 	printf("%5zd %s",
 	    repo->idx ? (ssize_t)xbps_dictionary_count(repo->idx) : -1,
 	    repo->uri);
 	if (repo->stage && xbps_dictionary_count(repo->stage) > 0)
 		printf(" (Staged)");
+	/* FIXME */
 	printf(" (RSA %s)\n", repo->is_signed ? "signed" : "unsigned");
-	if (repo->xhp->flags & XBPS_FLAG_VERBOSE) {
-		xbps_data_t pubkey;
-		char *hexfp = NULL;
-
-		xbps_dictionary_get_cstring_nocopy(repo->idxmeta, "signature-by", &signedby);
-		xbps_dictionary_get_uint16(repo->idxmeta, "public-key-size", &pubkeysize);
-		pubkey = xbps_dictionary_get(repo->idxmeta, "public-key");
-		if (pubkey)
-			hexfp = xbps_pubkey2fp(pubkey);
-		if (signedby)
-			printf("      Signed-by: %s\n", signedby);
-		if (pubkeysize && hexfp)
-			printf("      %u %s\n", pubkeysize, hexfp);
-		if (hexfp)
-			free(hexfp);
-	}
 }
 
 static void
