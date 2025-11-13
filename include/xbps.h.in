@@ -1769,16 +1769,6 @@ xbps_dictionary_t xbps_repo_get_virtualpkg(struct xbps_repo *repo, const char *p
  */
 xbps_array_t xbps_repo_get_pkg_revdeps(struct xbps_repo *repo, const char *pkg);
 
-/**
- * Imports the RSA public key of target repository. The repository must be
- * signed properly for this to work.
- *
- * @param[in] repo Pointer to the target xbps_repo structure.
- *
- * @return 0 on success, an errno value otherwise.
- */
-int xbps_repo_key_import(struct xbps_repo *repo);
-
 /**@}*/
 
 /** @addtogroup archive_util */
@@ -1990,31 +1980,6 @@ bool xbps_file_sha256_raw(unsigned char *dst, size_t len, const char *file);
  * if it differs, or any other errno value on error.
  */
 int xbps_file_sha256_check(const char *file, const char *sha256);
-
-/**
- * Verifies the RSA signature \a sigfile against \a digest with the
- * RSA public-key associated in \a repo.
- *
- * @param[in] repo Repository to use with the RSA public key associated.
- * @param[in] sigfile The signature file name used to verify \a digest.
- * @param[in] digest The digest to verify.
- *
- * @return True if the signature is valid, false otherwise.
- */
-bool xbps_verify_signature(struct xbps_repo *repo, const char *sigfile,
-		unsigned char *digest);
-
-/**
- * Verifies the RSA signature of \a fname with the RSA public-key associated
- * in \a repo.
- *
- * @param[in] repo Repository to use with the RSA public key associated.
- * @param[in] fname The filename to verify, the signature file must have a .sig2
- * extension, i.e `<fname>.sig2`.
- *
- * @return True if the signature is valid, false otherwise.
- */
-bool xbps_verify_file_signature(struct xbps_repo *repo, const char *fname);
 
 /**
  * Checks if a package is currently installed in pkgdb by matching \a pkg.
@@ -2319,16 +2284,6 @@ bool xbps_pkg_reverts(xbps_dictionary_t pkg, const char *pkgver);
  * greater than pkg2.
  */
 int xbps_cmpver(const char *pkg1, const char *pkg2);
-
-/**
- * Converts a RSA public key in PEM format to a hex fingerprint.
- *
- * @param[in] pubkey The public-key in PEM format as xbps_data_t.
- *
- * @return The OpenSSH fingerprint in hexadecimal.
- * The returned buffer must be free(3)d when necessary.
- */
-char *xbps_pubkey2fp(xbps_data_t pubkey);
 
 /**
  * Returns a buffer with a sanitized path from \a src.
