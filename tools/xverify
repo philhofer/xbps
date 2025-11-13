@@ -1,0 +1,33 @@
+#!/bin/sh -e
+#
+# usage: $0 KEYFILE DIR
+usage() {
+	echo "usage: XBPS_ROOT=... $0 keyfile repodir" >&2
+	echo "  keyfile is passed to ssh-keygen via -f" >&2
+	echo "  repodir should contain *-repodata files" >&2
+	exit 1
+}
+
+# with no arguments, just do everything from
+# the default installation directories
+[ $# -eq 0 ] && {
+	find ${XBPS_ROOT}/var/db/xbps/ -name '*-repodata' -type f | while read f; do
+		$0 ${XBPS_ROOT}/var/db/xbps/allowed_signers $(dirname $f) || exit 1
+	done
+	exit 0
+}
+
+[ $# -eq 2 ] || usage
+[ -d "$2" ] || usage
+for f in ${2}/*-repodata; do
+	sigfile="${f}.sig"
+	[ -r "$sigfile" ] || {
+		echo "no signature file present for $f" >&2
+		exit 1;
+	}
+	ssh-keygen -Y verify -n 'codesign@voidlinux.org' \
+		-I 'codesigner@voidlinux.org' -f "$1" -s "$sigfile" < "$f" || {
+		echo "verification for $f failed" >&2
+		exit 1
+	}
+done
