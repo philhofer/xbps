@@ -39,11 +39,11 @@
 #include "fetch.h"
 
 /*
- * run ssh-keygen -Y verify ... repotmp.sig;
+ * run ssh-keygen -Y verify ... sig < file;
  * the keys used come from xhp->rootdir
  */
 static bool
-verify_repotmp(struct xbps_handle *xhp) {
+verify_reposig(struct xbps_handle *xhp, const char *file, const char *sig) {
 	char signers_path[PATH_MAX];
 	pid_t child;
 	int status;
@@ -67,23 +67,23 @@ verify_repotmp(struct xbps_handle *xhp) {
 		xbps_error_printf("fork: %s\n", strerror(errno));
 		break;
 	case 0:
-		/* ssh-keygen -Y verify ... < repotmp */
-		if ((fd = open("repotmp", O_RDONLY)) < 0) {
-			dprintf(2, "couldn't open repotmp: %s\n", strerror(errno));
+		if ((fd = open(file, O_RDONLY)) < 0) {
+			xbps_error_printf("verifying repodata: couldn't open %s: %s\n", file, strerror(errno));
 			_exit(1);
 		}
 		if (dup2(fd, 0) < 0) {
-			dprintf(2, "couldn't set repotmp to stdin: %s\n", strerror(errno));
+			xbps_error_printf("couldn't set repotmp to stdin: %s\n", strerror(errno));
 			_exit(1);
 		}
+		if (fd != 0) close(fd);
 		execl("/usr/bin/ssh-keygen",
 			"/usr/bin/ssh-keygen", "-Y", "verify",
 			"-n" "codesign@voidlinux.org",
 			"-f", signers_path,
 			"-I", xhp->signer_principal,
-			"-s", "repotmp.sig",
+			"-s", sig,
 			NULL);
-		dprintf(2, "could't run ssh-keygen: %s\n", strerror(errno));
+		xbps_error_printf("running ssh-keygen -Y verify: %s\n", strerror(errno));
 		_exit(1);
 		break;
 	}
@@ -137,7 +137,7 @@ xbps_repo_sync(struct xbps_handle *xhp, const char *uri)
 {
 	mode_t prev_umask;
 	const char *arch, *fetchstr = NULL;
-	char *repodata, *lrepodir, *uri_fixedp, *reposig;
+	char *repodata, *lrepodir, *uri_fixedp, *reposig, *repotmp, *repotmp_sig;
 	int rv = 0;
 
 	assert(uri != NULL);
@@ -187,16 +187,23 @@ xbps_repo_sync(struct xbps_handle *xhp, const char *uri)
 
 	free(lrepodir);
 
+	/* the new repodata and its signature are downloaded
+	 * into temporary files, verified, and only then
+	 * relinked into their final resting place.
+	 * FIXME: xbps_fetch_file_dest() does a similar
+	 * dance internally; the redundancy could probably
+	 * be eliminated.
+	 */
 	repodata = xbps_xasprintf("%s/%s-repodata", uri, arch);
 	reposig = xbps_xasprintf("%s/%s-repodata.sig", uri, arch);
+	repotmp = xbps_xasprintf("%s-repodata.tmp", arch);
+	repotmp_sig = xbps_xasprintf("%s-repodata.tmp.sig", arch);
 
 	/* reposync start cb */
 	xbps_set_cb_state(xhp, XBPS_STATE_REPOSYNC, 0, repodata, NULL);
-	/*
-	 * Download signature file from repository.
-	 */
-	if ((rv = xbps_fetch_file_dest(xhp, reposig, "repotmp.sig", NULL)) == -1) {
-		(void)remove("repotmp.sig");
+	/* download arch-repodata.sig */
+	if ((rv = xbps_fetch_file_dest(xhp, reposig, repotmp_sig, NULL)) == -1) {
+		(void)remove(repotmp_sig);
 		/* reposync error cb */
 		fetchstr = xbps_fetch_error_string();
 		xbps_set_cb_state(xhp, XBPS_STATE_REPOSYNC_FAIL,
@@ -205,11 +212,9 @@ xbps_repo_sync(struct xbps_handle *xhp, const char *uri)
 		    reposig, fetchstr ? fetchstr : strerror(errno));
 		goto done;
 	}
-	/*
-	 * Download plist index file from repository.
-	 */
-	if ((rv = xbps_fetch_file_dest(xhp, repodata, "repotmp", NULL)) == -1) {
-		(void)remove("repotmp");
+	/* download arch-repodata */
+	if ((rv = xbps_fetch_file_dest(xhp, repodata, repotmp, NULL)) == -1) {
+		(void)remove(repotmp);
 		/* reposync error cb */
 		fetchstr = xbps_fetch_error_string();
 		xbps_set_cb_state(xhp, XBPS_STATE_REPOSYNC_FAIL,
@@ -221,26 +226,28 @@ xbps_repo_sync(struct xbps_handle *xhp, const char *uri)
 	if (rv == 1)
 		rv = 0;
 
-	if (!verify_repotmp(xhp)) {
-		(void)remove(repodata);
-		(void)remove(reposig);
+	if (!verify_reposig(xhp, repotmp, repotmp_sig)) {
+		(void)remove(repotmp);
+		(void)remove(repotmp_sig);
 		xbps_set_cb_state(xhp, XBPS_STATE_REPOSYNC_FAIL, EINVAL,
 		    "[reposync] repo failed verification `%s'", repodata);
 		rv = -1;
 		goto done;
 	}
-	/* finally: move the *verified* repodata file into the right place */
-	if (rename("repotmp", strrchr(repodata, '/')+1) < 0) {
-		remove(repodata);
+	/* finally: move the *verified* repodata file + sig into the right place */
+	if (rename(repotmp, strrchr(repodata, '/')+1) < 0) {
+		remove(repotmp);
 		rv = -1;
 	}
-	if (rename("repotmp.sig", strrchr(reposig, '/')+1) < 0) {
-		remove(reposig);
+	if (rename(repotmp_sig, strrchr(reposig, '/')+1) < 0) {
+		remove(repotmp_sig);
 		rv = -1;
 	}
 done:
 	umask(prev_umask);
 	free(repodata);
 	free(reposig);
+	free(repotmp);
+	free(repotmp_sig);
 	return rv;
 }

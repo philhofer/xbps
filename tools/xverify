@@ -2,8 +2,8 @@
 #
 # usage: $0 KEYFILE DIR
 usage() {
-	echo "usage: XBPS_ROOT=... $0 keyfile repodir" >&2
-	echo "  keyfile is passed to ssh-keygen via -f" >&2
+	echo "usage: XBPS_ROOT=... $0 allowed_signers repodir" >&2
+	echo "  see ssh-keygen(8) for info on allowed_signers" >&2
 	echo "  repodir should contain *-repodata files" >&2
 	exit 1
 }
