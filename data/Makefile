@@ -2,12 +2,14 @@
 
 PCFILE = libxbps.pc
 
-.PHONY: all
-all:
+${PCFILE}: ${PCFILE}.in
 	sed -e "s|@@VERSION@@|${VERSION}|g" \
 		-e "s|@@PREFIX@@|${PREFIX}|g" \
 		-e "s|@@EPREFIX@@|${EPREFIX}|g" \
 		${PCFILE}.in > ${PCFILE}
+
+.PHONY: all
+all: ${PCFILE}
 
 .PHONY: install
 install:
@@ -17,10 +19,9 @@ install:
 	install -m644 xbps.7 $(DESTDIR)$(MANDIR)/man7
 	install -d $(DESTDIR)$(PKGCONFIGDIR)
 	install -m644 $(PCFILE) $(DESTDIR)$(PKGCONFIGDIR)
-	install -d $(DESTDIR)/$(DBDIR)/keys
-	install -m644 *.plist $(DESTDIR)/$(DBDIR)/keys
+	install -d $(DESTDIR)/$(DBDIR)
+	install -m644 allowed_signers $(DESTDIR)/$(DBDIR)/allowed_signers
 	install -d $(DESTDIR)/$(SHAREDIR)/xbps.d
-	install -m644 repod-main.conf $(DESTDIR)/$(SHAREDIR)/xbps.d/00-repository-main.conf
 	install -m644 xbps.conf $(DESTDIR)/$(SHAREDIR)/xbps.d/xbps.conf
 	install -d $(DESTDIR)/$(SHAREDIR)/zsh/site-functions
 	install -m644 _xbps* $(DESTDIR)/$(SHAREDIR)/zsh/site-functions
