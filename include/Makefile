@@ -1,15 +1,15 @@
 -include ../config.mk
 
-INCS =	xbps.h
+xbps.h: xbps.h.in
+	sed -e "s|@@VERSION@@|${VERSION}|g" xbps.h.in > xbps.h
 
 .PHONY: all
-all:
-	sed -e "s|@@VERSION@@|${VERSION}|g" ${INCS}.in > ${INCS}
+all: xbps.h
 
 .PHONY: install
 install:
 	install -d $(DESTDIR)$(INCLUDEDIR)/xbps
-	install -m 644 $(INCS) $(DESTDIR)$(INCLUDEDIR)
+	install -m 644 xbps.h $(DESTDIR)$(INCLUDEDIR)
 	for f in array bool data dictionary number object string; do \
 		install -m 644 xbps/xbps_$${f}.h $(DESTDIR)$(INCLUDEDIR)/xbps; \
 	done
@@ -20,4 +20,4 @@ uninstall:
 
 .PHONY: clean
 clean:
-	-rm -f ${INCS}
+	-rm -f xbps.h
