@@ -336,6 +336,13 @@ repo_open_remote(struct xbps_repo *repo, struct archive *ar)
 	char url[PATH_MAX];
 	int r;
 
+	/* not safe! disallow for now.
+	 * a good long-term solution would be
+	 * to pull the repodata into $TMP and
+	 * then read it back like a normal file.
+	 */
+	return -EOPNOTSUPP;
+
 	r = snprintf(url, sizeof(url), "%s/%s-repodata", repo->uri, repo->arch);
 	if (r < 0 || (size_t)r >= sizeof(url)) {
 		xbps_error_printf("failed to open repository: %s: repository url too long\n",

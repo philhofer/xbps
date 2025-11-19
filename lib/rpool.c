@@ -69,13 +69,8 @@ xbps_rpool_sync(struct xbps_handle *xhp, const char *uri)
 		if (uri && strcmp(repouri, uri))
 			continue;
 
-		if (xbps_repo_sync(xhp, repouri) == -1) {
-			xbps_dbg_printf(
-			    "[rpool] `%s' failed to fetch repository data: %s\n",
-			    repouri, fetchLastErrCode == 0 ? strerror(errno) :
-			    xbps_fetch_error_string());
-			continue;
-		}
+		if (xbps_repo_sync(xhp, repouri) < 0)
+			return -1;
 	}
 	return 0;
 }
